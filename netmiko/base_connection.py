@@ -1026,8 +1026,8 @@ You can look at the Netmiko session_log or debug log for more information.
         """
         self.channel: Channel
         if self.protocol == "telnet":
-            self.remote_conn = telnetlib.Telnet(
-                self.host, port=self.port, timeout=self.timeout
+            self.remote_conn = Telnet(
+                self.host, port=self.port, timeout=self.timeout, sock=self.sock
             )
             # Migrating communication to channel class
             self.channel = TelnetChannel(conn=self.remote_conn, encoding=self.encoding)
@@ -2411,3 +2411,44 @@ You can also look at the Netmiko session_log or debug log for more information.
 
 class TelnetConnection(BaseConnection):
     pass
+
+
+class Telnet(telnetlib.Telnet):
+    def __init__(self, host=None, port=0, sock=None,
+                 timeout=socket._GLOBAL_DEFAULT_TIMEOUT):
+        """Constructor.
+
+        When called without arguments, create an unconnected instance.
+        With a hostname argument, it connects the instance; port number
+        and timeout are optional.
+        """
+        self.debuglevel = telnetlib.DEBUGLEVEL
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.sock = sock
+        self.rawq = b''
+        self.irawq = 0
+        self.cookedq = b''
+        self.eof = 0
+        self.iacseq = b'' # Buffer for IAC sequence.
+        self.sb = 0 # flag for SB and SE sequence.
+        self.sbdataq = b''
+        self.option_callback = None
+        if host is not None:
+            self.open(host, port, timeout)
+
+    def open(self, host, port=0, timeout=socket._GLOBAL_DEFAULT_TIMEOUT, **kwargs):
+        """Connect to a host.
+        The optional second argument is the port number, which
+        defaults to the standard telnet port (23).
+        Don't try to reopen an already connected instance.
+        """
+        self.eof = 0
+        if not port:
+            port = telnetlib.TELNET_PORT
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        if self.sock is None:
+            self.sock = socket.create_connection((host, port), timeout)
